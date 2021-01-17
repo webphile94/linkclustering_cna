@@ -1,0 +1,42 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Import relevant packages and create network with Forest Fire Algorithm and names vector of network
+```{r}
+require(linkcomm)
+require(igraph)
+
+graph <- sample_forestfire(1000,0.3,1,directed = F)
+graph <- set_vertex_attr(graph,name = "name",value = V(graph))
+names <- as.character(V(graph))
+```
+
+Create ego networks for each node in graph
+```{r}
+ego_graphs <- make_ego_graph(graph,order = 1)
+```
+
+Create functions to get Link Communities and delete the egos
+```{r}
+deleteEgos <- function(index){
+  name <- names[index]
+  delete_vertices(ego_graphs[[index]],name)
+}
+
+getLinkComm <- function(graph){
+  return(getLinkCommunities(as_edgelist(graph),plot = F))
+}
+```
+
+Delete egos of networks
+```{r}
+ego_graphs_no_ego <- lapply(1:1000,deleteEgos)
+```
+
+Get Link communities of ego-networks
+```{r}
+test <- lapply(ego_graphs_no_ego[1:100],getLinkComm)
+```
+
