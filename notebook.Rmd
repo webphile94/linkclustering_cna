@@ -1,0 +1,98 @@
+---
+title: "ANS Notebook"
+output:
+  html_document: 
+    df_print: tibble
+    toc: yes
+    theme: united
+---
+
+Below you find the results for the correlational analysis using Louvain Clustering for the Ego-Graphs
+```{r}
+## load up the packages we will need:  
+require(igraph)
+require(dplyr)
+require(here)
+require(ggcorrplot)
+
+## ---------------------------
+
+options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
+memory.limit(30000000)     # this is needed on some PCs to increase memory allowance, but has no impact on mac
+
+##------------------------Functions needed
+readCSVs <- function(filename){
+  object <- read.csv(paste0(here("data","dfs_with_modularity"),"/",filename))
+  return(object)
+}
+#Test for normality
+normalityTest <- function(df){
+  df <- df
+  object <- lapply(relevantCols,normalityTest_inside,df)
+}
+
+normalityTest_inside <- function(rel,df){
+  return(shapiro.test(df[,rel]))
+}
+getPvalueInside <- function(df){
+  if(df[[2]]<0.20){
+    return("no normality")
+  } else if(df[[2]]>0.20){
+    return("normality given")
+  }
+ 
+}
+getPvalue <- function(df){
+  list <- lapply(df,getPvalueInside)
+  return(list)
+}
+#Create Plots
+createPlot <- function(index){
+  corr <- round(cor(DFs[[index]] %>%
+                      select(k_shell,num_clusters,degree,community_centrality,total_infection,communities_louvain)
+  ,method = "spearman"), 2)
+  p.mat <- cor_pmat(DFs[[index]] %>%
+                      select(k_shell,num_clusters,degree,community_centrality,total_infection,communities_louvain))
+  
+  p <- ggcorrplot(corr, hc.order = TRUE, type = "lower",
+             p.mat = p.mat,
+             lab = TRUE,
+             outline.col = "white",
+             ggtheme = ggplot2::theme_gray,
+             colors = c("#6D9EC1", "white", "#E46726"))+labs(title = DFs_files_list[[index]])
+  
+  return(p)
+}
+
+```
+
+First things first. Let's import the newly generated DFs with Community Size Info
+```{r}
+#Create list of DFs
+DFs_files_list <- list.files(paste0(here("data","dfs_with_modularity"),"/"))
+
+#Import DFs
+DFs <- lapply(DFs_files_list,readCSVs)
+
+
+```
+
+Check relevant measures for assumption of normality
+```{r}
+relevantCols <- c(2,3,4,5,10)
+relevantColNames <- c("k_shell","degree","community_centrality","num_clusters","communities_louvain")
+
+save <- lapply(DFs,normalityTest)
+normalities <- lapply(save,getPvalue)
+normalities <- lapply(normalities,as.data.frame)
+normalities <- lapply(normalities,setNames,relevantColNames)
+
+normalities
+```
+Plot Correlation Plots with Spearman
+```{r}
+plots <- lapply(1:8,createPlot)
+plots
+```
+
+
