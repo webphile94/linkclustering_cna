@@ -1,0 +1,357 @@
+---
+title: "Creation of relevant Plots and Data for ANS Submission"
+output: html_notebook
+---
+
+
+
+```{r}
+## load up the packages we will need:  
+require(igraph)
+require(dplyr)
+require(here)
+require(ggcorrplot)
+
+## ---------------------------
+
+options(scipen = 6, digits = 4) # I prefer to view outputs in non-scientific notation
+pallette <- c("#667c74", "#b3692b", "#c1ba7f", "#1f1918", "#bb8082")# this is needed on some PCs to increase memory allowance, but has no impact on mac
+
+##------------------------Functions needed
+readCSVs <- function(filename){
+  object <- read.csv(paste0(here("data","dfs_final"),"/",filename))
+  return(object)
+}
+#Test for normality
+normalityTest <- function(df){
+  df <- df
+  object <- lapply(relevantCols,normalityTest_inside,df)
+}
+
+normalityTest_inside <- function(rel,df){
+  return(shapiro.test(df[,rel]))
+}
+getPvalueInside <- function(df){
+  if(df[[2]]<0.20){
+    return("no normality")
+  } else if(df[[2]]>0.20){
+    return("normality given")
+  }
+ 
+}
+getPvalue <- function(df){
+  list <- lapply(df,getPvalueInside)
+  return(list)
+}
+#Create Plots
+createPlot <- function(index){
+  corr <- round(cor(DFs[[index]] %>%
+                      select(k_shell,num_clusters,degree,community_centrality,total_infection,communities_louvain)
+  ,method = "spearman"), 2)
+  p.mat <- cor_pmat(DFs[[index]] %>%
+                      select(k_shell,num_clusters,degree,community_centrality,total_infection,communities_louvain))
+  
+  p <- ggcorrplot(corr, hc.order = TRUE, type = "lower",
+             p.mat = p.mat,
+             lab = TRUE,
+             outline.col = "white",
+             ggtheme = ggplot2::theme_gray,
+             colors = c("#6D9EC1", "white", "#E46726"))+labs(title = DFs_files_list[[index]])
+  
+  return(p)
+}
+
+```
+
+## Import Networks
+First things first. Let's import the newly generated DFs with Community Size Info
+```{r}
+#Create list of DFs
+DFs_files_list <- list.files(paste0(here("data","dfs_final"),"/"))
+
+#Import DFs
+DFs <- lapply(DFs_files_list,readCSVs)
+
+
+```
+
+## Check normality
+Check relevant measures for assumption of normality
+```{r}
+relevantCols <- c(2,3,4,5,10,11)
+relevantColNames <- c("k_shell","degree","community_centrality","num_clusters","communities_louvain","communities_LinkComm")
+
+save <- lapply(DFs,normalityTest)
+normalities <- lapply(save,getPvalue)
+normalities <- lapply(normalities,as.data.frame)
+normalities <- lapply(normalities,setNames,relevantColNames)
+
+normalities
+```
+## Correlations
+
+No normality can be assumed for any of the measures. Get Correlations of ENC_lv (Louvain) and ENC_lc (LinkComm) with other Measures
+
+```{r}
+
+measuresVector <- c("k_shell","degree","community_centrality","peak_infection","total_infection")
+
+getCorrelations_ENC_lv <- function(df){
+  output <- numeric()
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_louvain,k_shell,method = "spearman")))) -> output
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_louvain,degree,method = "spearman")))) -> output
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_louvain,community_centrality,method = "spearman")))) -> output
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_louvain,peak_infection,method = "spearman")))) -> output
+   c(output,as.numeric(df %>%
+    summarise(cor(communities_louvain,total_infection,method = "spearman")))) -> output
+ return(as.numeric(output))
+}
+
+getCorrelations_ENC_lc <- function(df){
+  output <- numeric()
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_LinkComm,k_shell,method = "spearman")))) -> output
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_LinkComm,degree,method = "spearman")))) -> output
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_LinkComm,community_centrality,method = "spearman")))) -> output
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_LinkComm,peak_infection,method = "spearman")))) -> output
+  c(output,as.numeric(df %>%
+    summarise(cor(communities_LinkComm,total_infection,method = "spearman")))) -> output
+  return(as.numeric(output))
+}
+
+
+corr_df_lc <- as.data.frame(cbind(measuresVector,as.data.frame(sapply(DFs,getCorrelations_ENC_lc))))
+corr_df_lv <- as.data.frame(cbind(measuresVector,as.data.frame(sapply(DFs,getCorrelations_ENC_lv))))
+
+names(corr_df_lc) <- c("measure",DFs_files_list)
+names(corr_df_lv) <- c("measure",DFs_files_list)
+
+corr_df_lc
+corr_df_lv
+```
+## Mean and SD Correlations
+Get mean correlation and sd correlation for corr_df_lc (LinkComm) and corr_df_lv (Louvain)
+```{r}
+corr_df_lc %>%
+  rowwise(measure)%>%
+  summarise(mean_corr_df_lc = mean(c(network_1.csv,
+                           network_2.csv,
+                           network_3.csv,
+                           network_4.csv,
+                           network_5.csv,
+                           network_6.csv,
+                           network_7.csv,
+                           network_8.csv)),
+            sd_corr_df_lc=sd(c(network_1.csv,
+                           network_2.csv,
+                           network_3.csv,
+                           network_4.csv,
+                           network_5.csv,
+                           network_6.csv,
+                           network_7.csv,
+                           network_8.csv)))
+
+corr_df_lv %>%
+  rowwise(measure)%>%
+  summarise(mean_corr_df_lv = mean(c(network_1.csv,
+                           network_2.csv,
+                           network_3.csv,
+                           network_4.csv,
+                           network_5.csv,
+                           network_6.csv,
+                           network_7.csv,
+                           network_8.csv)),
+            sd_corr_df_lv=sd(c(network_1.csv,
+                           network_2.csv,
+                           network_3.csv,
+                           network_4.csv,
+                           network_5.csv,
+                           network_6.csv,
+                           network_7.csv,
+                           network_8.csv)))
+```
+## Plots of Correlations
+
+Now, we want to plot these values.
+```{r}
+library(reshape2)
+library(wesanderson)
+
+#prepare dfs for plot (remove one col)
+corr_df_lc %>%
+       select(-measure) -> corr_df_lc_plot
+corr_df_lv %>%
+       select(-measure) -> corr_df_lv_plot
+
+#plot first with melt
+cbind(melt(corr_df_lc_plot,measure.vars = colnames(corr_df_lc_plot)),measure = as.factor(measuresVector)) %>% ggplot(.,aes(x=variable,y=value,color=measure))+geom_line(aes(group=measure))+geom_point(aes(color=measure),size=3,shape = 21, 
+               stroke = 2.0,fill="white")+scale_color_manual(values=pallette)+ylab("Spearman's Correlation")+xlab("network")+labs(title = "Correlations of ENC_lc with other Measures")
+
+#plot second with melt
+cbind(melt(corr_df_lv_plot,measure.vars = colnames(corr_df_lv_plot)),measure = as.factor(measuresVector)) %>% ggplot(.,aes(x=variable,y=value,color=measure))+geom_line(aes(group=measure))+geom_point(aes(color=measure),size=3,shape = 21, 
+               stroke = 2.0,fill="white")+scale_color_manual(values=pallette)+ylab("Spearman's Correlation")+xlab("network")+labs(title = "Correlations of ENC_lv with other Measures")
+```
+#Avg. Peak Infection across Networks
+```{r}
+getAvgPeakInfection <- function(df){
+  df%>%
+  summarise(mean(peak_infection)) -> output
+  return(as.numeric(output))
+}
+
+
+avgPeakInfections <- cbind(DFs_files_list,as.data.frame(sapply(DFs,getAvgPeakInfection)))
+names(avgPeakInfections) <- c("network","avgPeakInfection")
+
+avgPeakInfections
+```
+##Plot of avg. Peak Infections
+```{r}
+avgPeakInfections %>%
+  ggplot(aes(x=network,y=avgPeakInfection))+geom_line(aes(group = 1),color="#b3692b")+geom_point(color="#b3692b",size=3,shape = 21,stroke = 2.0,fill="white")+ylab("Peak Infection")+xlab("network")+labs(title = "Avg Peak Infection across networks")
+         
+      
+```
+
+##Imprecision Function
+```{r}
+getImprecision_total <- function(df){
+    top_spreader <- as.numeric(df%>%
+                      arrange(desc(total_infection))%>%
+                      slice_head(prop = 0.1)%>%
+                      summarise(mean(total_infection)))
+    output <- numeric()
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(k_shell))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(total_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(degree))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(total_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(community_centrality))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(total_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(communities_louvain))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(total_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(communities_LinkComm))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(total_infection)))/top_spreader)) -> output
+    return(output)
+}
+
+getImprecision_peak <- function(df){
+    top_spreader <- as.numeric(df%>%
+                      arrange(desc(peak_infection))%>%
+                      slice_head(prop = 0.1)%>%
+                      summarise(mean(peak_infection)))
+    output <- numeric()
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(k_shell))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(peak_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(degree))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(peak_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(community_centrality))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(peak_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(communities_louvain))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(peak_infection)))/top_spreader)) -> output
+    c(output,as.numeric(1-(df%>%
+               arrange(desc(communities_LinkComm))%>%
+               slice_head(prop = 0.1)%>%
+               summarise(top_measure = mean(peak_infection)))/top_spreader)) -> output
+    return(output)
+}
+
+measures <- c("k_shell","degree","community_centrality","communities_louvain","communities_LinkComm")
+
+imprecision_total <- cbind(measures,as.data.frame(sapply(DFs,getImprecision_total)))
+imprecision_peak <- cbind(measures,as.data.frame(sapply(DFs,getImprecision_peak)))
+
+names(imprecision_total) <- c("measure",DFs_files_list)
+names(imprecision_peak) <- c("measure",DFs_files_list)
+
+imprecision_peak
+imprecision_total
+```
+
+##Imprecision Plots
+Now plot it 
+```{r}
+imprecision_total %>%
+       select(-measure) -> imprecision_total_plot
+imprecision_peak %>%
+       select(-measure) -> imprecision_peak_plot
+
+#plot first with melt
+cbind(melt(imprecision_total_plot,measure.vars = colnames(imprecision_total_plot)),measure = as.factor(measures)) %>% ggplot(.,aes(x=variable,y=value,color=measure))+geom_line(aes(group=measure))+geom_point(aes(color=measure),size=3,shape = 21, 
+               stroke = 2.0,fill="white")+scale_color_manual(values=pallette)+ylab("Imprecision")+xlab("network")+labs(title = "Imprecision Function (total_infection)")
+
+#plot second with melt
+cbind(melt(imprecision_peak_plot,measure.vars = colnames(imprecision_peak_plot)),measure = as.factor(measures)) %>% ggplot(.,aes(x=variable,y=value,color=measure))+geom_line(aes(group=measure))+geom_point(aes(color=measure),size=3,shape = 21, 
+               stroke = 2.0,fill="white")+scale_color_manual(values=pallette)+ylab("Imprecision")+xlab("network")+labs(title = "Imprecision Function (peak_infection)")
+```
+
+##Bivariate Plots
+Now we want to take a look at the bivariate plots. Firstly, create the functions.
+
+```{r}
+library(viridis)
+
+createBivariatePlot <- function(index,measure_x,measure_y,infection){
+  
+  DFs[[index]]%>%
+  ggplot(aes_string(x=measure_x,y=measure_y))+
+  geom_jitter(aes_string(color=infection))+scale_color_viridis(option = "inferno")+
+  theme_minimal()+labs(title = DFs_files_list[index])->plot
+  
+  return(plot)
+}
+```
+
+Now, create the plots
+
+```{r}
+plots_cc_ks_total <- lapply(1:8,createBivariatePlot,"community_centrality","k_shell","total_infection")
+plots_cc_ks_peak <- lapply(1:8,createBivariatePlot,"community_centrality","k_shell","peak_infection")
+plots_cc_d_total <- lapply(1:8,createBivariatePlot,"community_centrality","degree","total_infection")
+plots_cc_d_peak <- lapply(1:8,createBivariatePlot,"community_centrality","degree","peak_infection")
+plots_enclv_ks_total <- lapply(1:8,createBivariatePlot,"communities_louvain","k_shell","total_infection")
+plots_enclv_ks_peak <- lapply(1:8,createBivariatePlot,"communities_louvain","k_shell","peak_infection")
+plots_enclv_cc_total <- lapply(1:8,createBivariatePlot,"communities_louvain","community_centrality","total_infection")
+plots_enclv_cc_peak <- lapply(1:8,createBivariatePlot,"communities_louvain","community_centrality","peak_infection")
+plots_enclc_ks_total <- lapply(1:8,createBivariatePlot,"communities_LinkComm","k_shell","total_infection")
+plots_enclc_ks_peak <- lapply(1:8,createBivariatePlot,"communities_LinkComm","k_shell","peak_infection")
+plots_enclc_cc_total <- lapply(1:8,createBivariatePlot,"communities_LinkComm","community_centrality","total_infection")
+plots_enclc_cc_peak <- lapply(1:8,createBivariatePlot,"communities_LinkComm","community_centrality","peak_infection")
+
+plots_cc_ks_total
+plots_cc_ks_peak
+plots_cc_d_total
+plots_cc_d_peak
+plots_enclv_ks_total
+plots_enclv_ks_peak
+plots_enclv_cc_total
+plots_enclv_cc_peak
+plots_enclc_ks_total
+plots_enclc_ks_peak
+plots_enclc_cc_total
+plots_enclc_cc_peak
+```
