@@ -355,3 +355,16 @@ plots_enclc_ks_peak
 plots_enclc_cc_total
 plots_enclc_cc_peak
 ```
+
+#Gini Coefficients
+```{r}
+require(ineq)
+
+getGini <- function(df){
+  return(ineq(df$degree,type = "Gini"))
+}
+
+sapply(DFs, getGini)
+
+```
+
