@@ -1,0 +1,23 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+
+fileslist <- list.files("/Users/simonkrukowski/Documents/GitHub/linkclustering_cna/data/dfs_final")
+
+files <- lapply(fileslist,importData)
+
+importData <- function(listitem){
+  return(
+    read.csv(paste0("/Users/simonkrukowski/Documents/GitHub/linkclustering_cna/data/dfs_final/",listitem))
+  )
+}
+
+
+
+ggplot(files[[4]])+geom_jitter(aes(x=communities_louvain,y=communities_LinkComm),color="#4D4455",fill="#6C5B7C",size=3,shape=21,stroke=1)+theme_classic()+xlab("Louvain Communities")+ylab("Overlapping Link Communities")
+```
+

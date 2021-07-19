@@ -1,0 +1,133 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+require(reshape2)
+require(forcats)
+require(dplyr)
+require(ggplot2)
+
+palette <- c("#6c5b7c",
+             "#c06c84",
+             "#f67280",
+             "#f8b595")
+  
+fig_3 <- read.csv("fig_3.csv")
+fig_4 <- read.csv("fig_4.csv")
+fig_6 <- read.csv("fig_6.csv")
+fig_7 <- read.csv("fig_7.csv")
+fig_8 <- read.csv("fig_8.csv")
+
+fig_3 %>% 
+  dcast(p~measure) %>% 
+  rename("ɛ (degree)" = i_degree,
+         "ɛ (CC_global)" = i_global_cc,
+         "ɛ (CC_local)" = i_local_cc5,
+         "ɛ (kShell)" = i_kshell) %>% 
+  melt(id.vars = c("p")) %>% 
+  rename(measure = variable,
+         imprecision = value) %>% 
+  mutate(measure = fct_relevel(measure,"ɛ (degree)","ɛ (kShell)","ɛ (CC_global)","ɛ (CC_local)")) -> fig_3
+
+fig_4 %>% 
+  dcast(p~measure) %>% 
+  rename("ɛ (degree)" = i_degree,
+         "ɛ (CC_global)" = i_global_cc,
+         "ɛ (CC_local)" = i_local_cc5,
+         "ɛ (kShell)" = i_kshell) %>% 
+  melt(id.vars = c("p")) %>% 
+  rename(measure = variable,
+         imprecision = value) %>% 
+  mutate(measure = fct_relevel(measure,"ɛ (degree)","ɛ (kShell)","ɛ (CC_global)","ɛ (CC_local)")) -> fig_4
+```
+
+
+```{r}
+fig_3 %>%
+  ggplot(aes(x=p,y=imprecision,group=measure))+geom_line(size=1,aes( color=measure))+scale_color_manual(values = palette)+
+  ylab("Imprecision")+xlab(expression(italic("p")))+labs(color=TeX(r'($\epsilon_{(measure)}$)'))+
+  theme_classic()+scale_y_continuous(limits = c(0.07,0.25))
+fig_4 %>%
+  ggplot(aes(x=p,y=imprecision,group=measure))+geom_line(size=1,aes( color=measure))+scale_color_manual(values = palette)+
+  ylab("Imprecision")+xlab(expression(italic("p")))+labs(color=TeX(r'($\epsilon_{(measure)}$)'))+
+  theme_classic()+scale_y_continuous(limits = c(0.15,0.4))
+```
+
+```{r}
+fig_6%>% 
+  select(fb_prob,measure,imprecision) %>% 
+  dcast(fb_prob~measure) %>% 
+  rename("ɛ (degree)" = i_degree,
+         "ɛ (CC_global)" = i_global_cc,
+         "ɛ (CC_local)" = i_local_cc5,
+         "ɛ (kShell)" = i_kshell) %>% 
+  melt(id.vars = c("fb_prob")) %>% 
+  rename(measure = variable,
+         imprecision = value) %>% 
+  mutate(measure = fct_relevel(measure,"ɛ (degree)","ɛ (kShell)","ɛ (CC_global)","ɛ (CC_local)")) -> fig_6
+
+fig_7%>% 
+  select(fb_prob,measure,imprecision) %>% 
+  dcast(fb_prob~measure) %>% 
+  rename("ɛ (degree)" = i_degree,
+         "ɛ (CC_global)" = i_global_cc,
+         "ɛ (CC_local)" = i_local_cc5,
+         "ɛ (kShell)" = i_kshell) %>% 
+  melt(id.vars = c("fb_prob")) %>% 
+  rename(measure = variable,
+         imprecision = value) %>% 
+  mutate(measure = fct_relevel(measure,"ɛ (degree)","ɛ (kShell)","ɛ (CC_global)","ɛ (CC_local)"))
+
+```
+
+```{r}
+fig_6 %>%
+  ggplot(aes(x=fb_prob,y=imprecision,group=measure))+geom_point(aes(color=measure),size=3)+geom_line(size=1.5,aes( color=measure))+scale_color_manual(values = palette)+
+  ylab("Imprecision")+xlab(TeX(r'($p_{fb}$)'))+labs(color=TeX(r'($\epsilon_{(measure)}$)'))+
+  theme_classic()+scale_y_continuous(limits = c(0,0.45))
+
+fig_7 %>%
+  ggplot(aes(x=fb_prob,y=imprecision))+geom_point(aes(color=measure),size=3)+geom_line(size=1.5,aes( color=measure))+scale_color_manual(values = palette)+
+ ylab("Imprecision")+xlab(TeX(r'($p_{fb}$)'))+labs(color=TeX(r'($\epsilon_{(measure)}$)'))+
+  theme_classic()+scale_y_continuous(limits = c(0,0.45))
+```
+
+```{r}
+require(ineq)
+
+getGini <- function(df){
+  return(ineq(df$peak_infection,type = "Gini"))
+}
+
+gini_total <- sapply(DFs, getGini)
+gini_peak <- sapply(DFs,getGini)
+
+getAvgPeakInfection <- function(df){
+  df%>%
+  summarise(mean(peak_infection)) -> output
+  return(as.numeric(output))
+}
+
+getAvgTotalInfection <- function(df){
+  df%>%
+  summarise(mean(total_infection)) -> output
+  return(as.numeric(output))
+}
+
+fw_prob <- fig_8$fb_prob
+  
+avgPeakInfections <- cbind(fw_prob,as.data.frame(sapply(DFs,getAvgPeakInfection)),
+                           as.data.frame(sapply(DFs,getAvgTotalInfection)))
+
+fig_8 <- cbind(avgPeakInfections,gini_peak,gini_total)
+names(fig_8) <- c("network","avg. peak infection","avg. total infection","Gini (peak infection)","Gini (total infection)")
+
+melt(fig_8,id.vars = "network") %>% 
+  ggplot(aes(x=network,y=value,group=variable))+geom_point(aes(color=variable),size=3)+geom_line(size=1.5,aes( color=variable))+scale_color_manual(values = palette)+
+  ylab("Value (in %)")+xlab("Generated network")+labs(color="Variable")+
+  theme_classic()
+```
+

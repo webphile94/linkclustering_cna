@@ -1,0 +1,9 @@
+"","file","fb_prob","total_infection_gini"
+"1","github/linkclustering_cna/data/dfs_final/network_1.csv",0.05,0.38732209720836
+"2","github/linkclustering_cna/data/dfs_final/network_2.csv",0.1,0.343083797872262
+"3","github/linkclustering_cna/data/dfs_final/network_3.csv",0.15,0.294968643576683
+"4","github/linkclustering_cna/data/dfs_final/network_4.csv",0.2,0.268966324905317
+"5","github/linkclustering_cna/data/dfs_final/network_5.csv",0.25,0.17821665348211
+"6","github/linkclustering_cna/data/dfs_final/network_6.csv",0.3,0.154012143052391
+"7","github/linkclustering_cna/data/dfs_final/network_7.csv",0.35,0.0944514448451939
+"8","github/linkclustering_cna/data/dfs_final/network_8.csv",0.4,0.0247642569911836
